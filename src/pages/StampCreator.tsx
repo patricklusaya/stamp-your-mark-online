@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +11,9 @@ import { removeBackgroundFromCanvas } from "@/utils/backgroundRemoval";
 
 const StampCreator = () => {
   const [stampText, setStampText] = useState("YOUR NAME\nNOTARY\nPUBLIC");
-  const [fontSize, setFontSize] = useState([14]);
+  const [fontSize, setFontSize] = useState([16]);
   const [stampType, setStampType] = useState("notary-circle");
-  const [borderWidth, setBorderWidth] = useState([2]);
+  const [borderWidth, setBorderWidth] = useState([3]);
   const [state, setState] = useState("STATE OF NEW YORK");
   const [removeBackground, setRemoveBackground] = useState(true);
 
@@ -31,112 +30,176 @@ const StampCreator = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
+    // Set high resolution for crisp output
+    const scale = 3; // 3x resolution for better quality
+    
     // Set canvas size based on stamp type
+    let baseWidth, baseHeight;
     if (stampType === "notary-circle") {
-      canvas.width = 300;
-      canvas.height = 300;
+      baseWidth = baseHeight = 400;
     } else if (stampType === "logo-square") {
-      canvas.width = 250;
-      canvas.height = 250;
+      baseWidth = baseHeight = 350;
+    } else if (stampType === "signature-oval") {
+      baseWidth = 450;
+      baseHeight = 200;
     } else {
-      canvas.width = 350;
-      canvas.height = 120;
+      baseWidth = 450;
+      baseHeight = 150;
     }
+
+    canvas.width = baseWidth * scale;
+    canvas.height = baseHeight * scale;
+    
+    // Scale the context to draw at high resolution
+    ctx.scale(scale, scale);
+
+    // Enable high-quality rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.textRenderingOptimization = 'optimizeQuality';
 
     // Fill background (will be removed later if removeBackground is true)
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, baseWidth, baseHeight);
 
     // Set drawing styles
-    ctx.strokeStyle = '#1e40af';
-    ctx.fillStyle = '#1e40af';
+    ctx.strokeStyle = '#1a365d'; // Darker blue for better contrast
+    ctx.fillStyle = '#1a365d';
     ctx.lineWidth = borderWidth[0];
-    ctx.font = `${fontSize[0]}px Arial`;
-    ctx.textAlign = 'center';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
+    const centerX = baseWidth / 2;
+    const centerY = baseHeight / 2;
 
     // Draw stamp based on type
     switch (stampType) {
       case "notary-circle":
-        // Outer circle with dashed border
-        const outerRadius = (Math.min(canvas.width, canvas.height) - 20) / 2;
-        ctx.setLineDash([5, 3]);
+        // Outer circle with solid border
+        const outerRadius = (Math.min(baseWidth, baseHeight) - 40) / 2;
+        ctx.lineWidth = borderWidth[0] + 1;
         ctx.beginPath();
         ctx.arc(centerX, centerY, outerRadius, 0, 2 * Math.PI);
         ctx.stroke();
 
         // Inner circle
-        ctx.setLineDash([]);
+        ctx.lineWidth = borderWidth[0];
         ctx.beginPath();
-        ctx.arc(centerX, centerY, outerRadius - 20, 0, 2 * Math.PI);
+        ctx.arc(centerX, centerY, outerRadius - 25, 0, 2 * Math.PI);
         ctx.stroke();
 
-        // Center text (NOTARY PUBLIC)
+        // Center text with better typography
         const lines = stampText.split('\n').filter(line => line.trim());
-        ctx.font = `bold ${fontSize[0]}px Arial`;
+        ctx.font = `bold ${fontSize[0] + 2}px "Times New Roman", serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         
         if (lines.length >= 2) {
-          ctx.fillText(lines[1], centerX, centerY - 5); // NOTARY
-          ctx.fillText(lines[2] || "PUBLIC", centerX, centerY + fontSize[0]);
+          ctx.fillText(lines[1], centerX, centerY - fontSize[0]/2); // NOTARY
+          ctx.fillText(lines[2] || "PUBLIC", centerX, centerY + fontSize[0]/2);
         }
 
-        // Curved text at top (NAME)
+        // Curved text at top (NAME) with better spacing
         if (lines[0]) {
-          drawCurvedText(ctx, lines[0], centerX, centerY, outerRadius - 35, -Math.PI/2, true);
+          drawCurvedText(ctx, lines[0], centerX, centerY, outerRadius - 45, -Math.PI/2, true);
         }
 
         // Curved text at bottom (STATE)
-        drawCurvedText(ctx, state, centerX, centerY, outerRadius - 35, Math.PI/2, false);
+        drawCurvedText(ctx, state, centerX, centerY, outerRadius - 45, Math.PI/2, false);
 
-        // Center decorative element
+        // Decorative elements with better design
+        const starSize = 4;
+        drawStar(ctx, centerX, centerY + fontSize[0] + 15, starSize);
+        
+        // Side decorative lines
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(centerX - 10, centerY + 35, 2, 0, 2 * Math.PI);
-        ctx.fill();
+        ctx.moveTo(centerX - 30, centerY + fontSize[0] + 15);
+        ctx.lineTo(centerX - 10, centerY + fontSize[0] + 15);
+        ctx.stroke();
         ctx.beginPath();
-        ctx.arc(centerX + 10, centerY + 35, 2, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(centerX - 8, centerY + 35);
-        ctx.lineTo(centerX + 8, centerY + 35);
+        ctx.moveTo(centerX + 10, centerY + fontSize[0] + 15);
+        ctx.lineTo(centerX + 30, centerY + fontSize[0] + 15);
         ctx.stroke();
         break;
 
       case "business-rectangle":
-        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
-        ctx.strokeRect(15, 15, canvas.width - 30, canvas.height - 30);
-        ctx.font = `bold ${fontSize[0]}px Arial`;
+        // Double border design
+        ctx.lineWidth = borderWidth[0];
+        ctx.strokeRect(15, 15, baseWidth - 30, baseHeight - 30);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(20, 20, baseWidth - 40, baseHeight - 40);
+        
+        // Text with better formatting
+        ctx.font = `bold ${fontSize[0]}px "Arial", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         const businessLines = stampText.split('\n');
+        const lineHeight = fontSize[0] + 5;
+        const startY = centerY - ((businessLines.length - 1) * lineHeight) / 2;
+        
         businessLines.forEach((line, index) => {
-          ctx.fillText(line, centerX, centerY - (businessLines.length - 1) * fontSize[0]/2 + index * fontSize[0]);
+          ctx.fillText(line, centerX, startY + index * lineHeight);
         });
         break;
 
       case "address-rectangle":
-        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
-        ctx.font = `${fontSize[0]}px Arial`;
+        // Simple elegant border
+        ctx.lineWidth = borderWidth[0];
+        ctx.strokeRect(15, 15, baseWidth - 30, baseHeight - 30);
+        
+        // Left-aligned text for addresses
+        ctx.font = `${fontSize[0]}px "Arial", sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
         const addressLines = stampText.split('\n');
+        const padding = 30;
         addressLines.forEach((line, index) => {
-          ctx.fillText(line, centerX, 40 + index * (fontSize[0] + 5));
+          ctx.fillText(line, padding, padding + index * (fontSize[0] + 8));
         });
         break;
 
       case "signature-oval":
+        // Elegant oval with thicker border
+        ctx.lineWidth = borderWidth[0] + 1;
         ctx.beginPath();
-        ctx.ellipse(centerX, centerY, (canvas.width - 20) / 2, (canvas.height - 20) / 2, 0, 0, 2 * Math.PI);
+        ctx.ellipse(centerX, centerY, (baseWidth - 30) / 2, (baseHeight - 30) / 2, 0, 0, 2 * Math.PI);
         ctx.stroke();
-        ctx.font = `italic ${fontSize[0]}px Arial`;
+        
+        // Inner oval
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY, (baseWidth - 50) / 2, (baseHeight - 50) / 2, 0, 0, 2 * Math.PI);
+        ctx.stroke();
+        
+        // Elegant script-style text
+        ctx.font = `italic ${fontSize[0] + 2}px "Georgia", serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.fillText(stampText.replace(/\n/g, ' '), centerX, centerY);
         break;
 
       case "logo-square":
-        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
-        ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
-        ctx.font = `bold ${fontSize[0]}px Arial`;
+        // Modern square design with rounded corners effect
+        const cornerRadius = 10;
+        ctx.lineWidth = borderWidth[0];
+        drawRoundedRect(ctx, 15, 15, baseWidth - 30, baseHeight - 30, cornerRadius);
+        ctx.stroke();
+        
+        ctx.lineWidth = 1;
+        drawRoundedRect(ctx, 25, 25, baseWidth - 50, baseHeight - 50, cornerRadius - 5);
+        ctx.stroke();
+        
+        // Modern typography
+        ctx.font = `bold ${fontSize[0]}px "Helvetica", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         const logoLines = stampText.split('\n');
+        const logoLineHeight = fontSize[0] + 8;
+        const logoStartY = centerY - ((logoLines.length - 1) * logoLineHeight) / 2;
+        
         logoLines.forEach((line, index) => {
-          ctx.fillText(line, centerX, centerY - (logoLines.length - 1) * fontSize[0]/2 + index * fontSize[0]);
+          ctx.fillText(line, centerX, logoStartY + index * logoLineHeight);
         });
         break;
     }
@@ -144,13 +207,48 @@ const StampCreator = () => {
     return canvas;
   };
 
-  const drawCurvedText = (ctx: CanvasRenderingContext2D, text: string, centerX: number, centerY: number, radius: number, startAngle: number, clockwise: boolean) => {
-    const angleStep = (Math.PI * 1.5) / text.length; // Adjust curve spread
+  const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  };
+
+  const drawStar = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
     ctx.save();
-    ctx.font = `bold ${fontSize[0]}px Arial`;
+    ctx.translate(x, y);
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const angle = (i * 144 - 90) * Math.PI / 180;
+      const x1 = Math.cos(angle) * size;
+      const y1 = Math.sin(angle) * size;
+      if (i === 0) ctx.moveTo(x1, y1);
+      else ctx.lineTo(x1, y1);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  };
+
+  const drawCurvedText = (ctx: CanvasRenderingContext2D, text: string, centerX: number, centerY: number, radius: number, startAngle: number, clockwise: boolean) => {
+    ctx.save();
+    ctx.font = `bold ${fontSize[0]}px "Times New Roman", serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    const totalAngle = Math.PI * 1.2; // Reduced for better curve
+    const angleStep = totalAngle / Math.max(text.length - 1, 1);
+    const startOffset = startAngle - totalAngle / 2;
     
     for (let i = 0; i < text.length; i++) {
-      const angle = startAngle + (clockwise ? i * angleStep : -i * angleStep);
+      const angle = startOffset + (clockwise ? i * angleStep : -i * angleStep);
       const x = centerX + Math.cos(angle) * radius;
       const y = centerY + Math.sin(angle) * radius;
       
@@ -176,14 +274,14 @@ const StampCreator = () => {
       
       const link = document.createElement('a');
       link.download = `${stampType}-stamp.png`;
-      link.href = finalCanvas.toDataURL('image/png');
+      link.href = finalCanvas.toDataURL('image/png', 1.0); // Maximum quality
       link.click();
     } catch (error) {
       console.error('Error processing stamp:', error);
       // Fallback to download with background
       const link = document.createElement('a');
       link.download = `${stampType}-stamp.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.href = canvas.toDataURL('image/png', 1.0);
       link.click();
     }
   };
@@ -271,8 +369,8 @@ const StampCreator = () => {
               <Slider
                 value={fontSize}
                 onValueChange={setFontSize}
-                max={24}
-                min={10}
+                max={32}
+                min={12}
                 step={1}
                 className="w-full"
               />
@@ -283,7 +381,7 @@ const StampCreator = () => {
               <Slider
                 value={borderWidth}
                 onValueChange={setBorderWidth}
-                max={6}
+                max={8}
                 min={1}
                 step={1}
                 className="w-full"
@@ -319,8 +417,11 @@ const StampCreator = () => {
                       if (generatedCanvas) {
                         const ctx = canvasRef.getContext('2d');
                         if (ctx) {
-                          canvasRef.width = generatedCanvas.width;
-                          canvasRef.height = generatedCanvas.height;
+                          // Scale down for preview while maintaining quality
+                          const scale = 0.8;
+                          canvasRef.width = generatedCanvas.width * scale;
+                          canvasRef.height = generatedCanvas.height * scale;
+                          ctx.scale(scale, scale);
                           ctx.drawImage(generatedCanvas, 0, 0);
                         }
                       }
