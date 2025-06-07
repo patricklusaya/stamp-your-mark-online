@@ -1,6 +1,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const Gallery = () => {
   const stampTypes = [
@@ -42,16 +43,20 @@ const Gallery = () => {
               <CardContent className="p-6 text-center">
                 <h3 className="text-xl font-semibold mb-2">{stamp.title}</h3>
                 <p className="text-muted-foreground mb-4">{stamp.description}</p>
-                <Button variant="outline" className="w-full">Choose This Style</Button>
+                <Link to="/create">
+                  <Button variant="outline" className="w-full">Choose This Style</Button>
+                </Link>
               </CardContent>
             </Card>
           ))}
         </div>
         
         <div className="text-center">
-          <Button size="lg" className="text-xl px-12 py-8 hover-scale">
-            Start Creating Your Stamp
-          </Button>
+          <Link to="/create">
+            <Button size="lg" className="text-xl px-12 py-8 hover-scale">
+              Start Creating Your Stamp
+            </Button>
+          </Link>
         </div>
       </div>
     </section>

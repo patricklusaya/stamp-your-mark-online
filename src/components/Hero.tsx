@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Stamp } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Hero = () => {
   return (
@@ -24,10 +25,12 @@ const Hero = () => {
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
-          <Button size="lg" className="text-xl px-12 py-8 hover-scale">
-            Start Creating Now
-            <ArrowRight className="ml-2 w-6 h-6" />
-          </Button>
+          <Link to="/create">
+            <Button size="lg" className="text-xl px-12 py-8 hover-scale">
+              Start Creating Now
+              <ArrowRight className="ml-2 w-6 h-6" />
+            </Button>
+          </Link>
           <Button variant="outline" size="lg" className="text-lg px-8 py-6 hover-scale">
             See Examples
           </Button>
