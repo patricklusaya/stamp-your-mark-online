@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +57,6 @@ const StampCreator = () => {
     // Enable high-quality rendering
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.textRenderingOptimization = 'optimizeQuality';
 
     // Fill background (will be removed later if removeBackground is true)
     ctx.fillStyle = '#ffffff';
