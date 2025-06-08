@@ -1,5 +1,5 @@
 
-import { drawRoundedRect, drawStar, drawCurvedText } from './stampDrawing';
+import { drawRoundedRect, drawStar, drawCurvedText, addInkEffects } from './stampDrawing';
 
 export interface StampConfig {
   stampText: string;
@@ -16,7 +16,7 @@ export const generateStampCanvas = (config: StampConfig): HTMLCanvasElement | nu
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const scale = 3;
+  const scale = 4; // Increased for better quality
   
   let baseWidth, baseHeight;
   if (stampType === "notary-circle") {
@@ -35,14 +35,15 @@ export const generateStampCanvas = (config: StampConfig): HTMLCanvasElement | nu
   canvas.height = baseHeight * scale;
   
   ctx.scale(scale, scale);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingEnabled = false; // Disable for grunge effect
 
-  ctx.fillStyle = '#ffffff';
+  // Create off-white background for better ink effect
+  ctx.fillStyle = '#fefefe';
   ctx.fillRect(0, 0, baseWidth, baseHeight);
 
-  ctx.strokeStyle = '#1a365d';
-  ctx.fillStyle = '#1a365d';
+  // Set up ink-like styling
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.fillStyle = '#1a1a1a';
   ctx.lineWidth = borderWidth;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -68,7 +69,14 @@ export const generateStampCanvas = (config: StampConfig): HTMLCanvasElement | nu
       break;
   }
 
+  // Apply ink effects for authenticity
+  addInkEffects(ctx, baseWidth, baseHeight);
+
   return canvas;
+};
+
+const getTypewriterFont = (size: number, bold: boolean = false): string => {
+  return `${bold ? 'bold ' : ''}${size}px "Special Elite", "Courier Prime", "Courier New", monospace`;
 };
 
 const drawNotaryCircle = (
@@ -95,7 +103,7 @@ const drawNotaryCircle = (
   ctx.stroke();
 
   const lines = stampText.split('\n').filter(line => line.trim());
-  ctx.font = `bold ${fontSize + 2}px "Times New Roman", serif`;
+  ctx.font = getTypewriterFont(fontSize + 2, true);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   
@@ -105,10 +113,10 @@ const drawNotaryCircle = (
   }
 
   if (lines[0]) {
-    drawCurvedText(ctx, lines[0], centerX, centerY, outerRadius - 45, -Math.PI/2, true, fontSize);
+    drawCurvedText(ctx, lines[0], centerX, centerY, outerRadius - 45, -Math.PI/2, true, fontSize, true);
   }
 
-  drawCurvedText(ctx, state, centerX, centerY, outerRadius - 45, Math.PI/2, false, fontSize);
+  drawCurvedText(ctx, state, centerX, centerY, outerRadius - 45, Math.PI/2, false, fontSize, true);
 
   const starSize = 4;
   drawStar(ctx, centerX, centerY + fontSize + 15, starSize);
@@ -139,7 +147,7 @@ const drawBusinessRectangle = (
   ctx.lineWidth = 1;
   ctx.strokeRect(20, 20, baseWidth - 40, baseHeight - 40);
   
-  ctx.font = `bold ${fontSize}px "Arial", sans-serif`;
+  ctx.font = getTypewriterFont(fontSize, true);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const businessLines = stampText.split('\n');
@@ -162,7 +170,7 @@ const drawAddressRectangle = (
   ctx.lineWidth = borderWidth;
   ctx.strokeRect(15, 15, baseWidth - 30, baseHeight - 30);
   
-  ctx.font = `${fontSize}px "Arial", sans-serif`;
+  ctx.font = getTypewriterFont(fontSize);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   const addressLines = stampText.split('\n');
@@ -192,7 +200,7 @@ const drawSignatureOval = (
   ctx.ellipse(centerX, centerY, (baseWidth - 50) / 2, (baseHeight - 50) / 2, 0, 0, 2 * Math.PI);
   ctx.stroke();
   
-  ctx.font = `italic ${fontSize + 2}px "Georgia", serif`;
+  ctx.font = getTypewriterFont(fontSize + 2);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(stampText.replace(/\n/g, ' '), centerX, centerY);
@@ -217,7 +225,7 @@ const drawLogoSquare = (
   drawRoundedRect(ctx, 25, 25, baseWidth - 50, baseHeight - 50, cornerRadius - 5);
   ctx.stroke();
   
-  ctx.font = `bold ${fontSize}px "Helvetica", sans-serif`;
+  ctx.font = getTypewriterFont(fontSize, true);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const logoLines = stampText.split('\n');
