@@ -3,13 +3,15 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, Download, RotateCcw } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Upload, Download, RotateCcw, Move, RotateCw } from "lucide-react";
 import { generateStampCanvas, StampConfig } from "@/utils/stampGenerator";
 import { toast } from "sonner";
 
 interface StampPosition {
   x: number;
   y: number;
+  rotation: number;
   id: string;
   config: StampConfig;
 }
@@ -21,6 +23,7 @@ interface DocumentStamperProps {
 const DocumentStamper = ({ stampConfig }: DocumentStamperProps) => {
   const [document, setDocument] = useState<HTMLImageElement | null>(null);
   const [stamps, setStamps] = useState<StampPosition[]>([]);
+  const [selectedStamp, setSelectedStamp] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,7 +54,7 @@ const DocumentStamper = ({ stampConfig }: DocumentStamperProps) => {
           const page = await pdf.getPage(1); // Get first page
           
           const viewport = page.getViewport({ scale: 2 });
-          const canvas = document.createElement('canvas');
+          const canvas = globalThis.document.createElement('canvas');
           const context = canvas.getContext('2d');
           
           if (!context) throw new Error('Could not get canvas context');
@@ -100,6 +103,7 @@ const DocumentStamper = ({ stampConfig }: DocumentStamperProps) => {
       const img = await convertToImage(file);
       setDocument(img);
       setStamps([]);
+      setSelectedStamp(null);
       toast.success("Document uploaded successfully!");
     } catch (error) {
       console.error('Error converting file:', error);
@@ -120,16 +124,48 @@ const DocumentStamper = ({ stampConfig }: DocumentStamperProps) => {
     const x = (event.clientX - rect.left) * scaleX;
     const y = (event.clientY - rect.top) * scaleY;
 
-    const newStamp: StampPosition = {
-      x,
-      y,
-      id: Date.now().toString(),
-      config: stampConfig
-    };
+    // Check if clicked on existing stamp
+    const clickedStamp = stamps.find(stamp => {
+      const distance = Math.sqrt((stamp.x - x) ** 2 + (stamp.y - y) ** 2);
+      return distance < 50; // 50px radius for selection
+    });
 
-    setStamps(prev => [...prev, newStamp]);
-    toast.success("Stamp placed!");
-  }, [document, stampConfig]);
+    if (clickedStamp) {
+      setSelectedStamp(clickedStamp.id);
+      toast.success("Stamp selected! Use controls below to adjust.");
+    } else {
+      // Create new stamp
+      const newStamp: StampPosition = {
+        x,
+        y,
+        rotation: 0,
+        id: Date.now().toString(),
+        config: stampConfig
+      };
+
+      setStamps(prev => [...prev, newStamp]);
+      setSelectedStamp(newStamp.id);
+      toast.success("Stamp placed! Click to select and adjust.");
+    }
+  }, [document, stampConfig, stamps]);
+
+  const updateSelectedStamp = useCallback((updates: Partial<StampPosition>) => {
+    if (!selectedStamp) return;
+    
+    setStamps(prev => prev.map(stamp => 
+      stamp.id === selectedStamp 
+        ? { ...stamp, ...updates }
+        : stamp
+    ));
+  }, [selectedStamp]);
+
+  const deleteSelectedStamp = useCallback(() => {
+    if (!selectedStamp) return;
+    
+    setStamps(prev => prev.filter(stamp => stamp.id !== selectedStamp));
+    setSelectedStamp(null);
+    toast.success("Stamp deleted!");
+  }, [selectedStamp]);
 
   const redrawCanvas = useCallback(() => {
     if (!canvasRef.current || !document) return;
@@ -154,17 +190,29 @@ const DocumentStamper = ({ stampConfig }: DocumentStamperProps) => {
         
         ctx.save();
         ctx.globalAlpha = 0.8; // Make stamp semi-transparent
+        ctx.translate(stamp.x, stamp.y);
+        ctx.rotate((stamp.rotation * Math.PI) / 180);
         ctx.drawImage(
           stampCanvas, 
-          stamp.x - stampWidth / 2, 
-          stamp.y - stampHeight / 2,
+          -stampWidth / 2, 
+          -stampHeight / 2,
           stampWidth,
           stampHeight
         );
+        
+        // Draw selection indicator
+        if (stamp.id === selectedStamp) {
+          ctx.strokeStyle = '#3B82F6';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.strokeRect(-stampWidth / 2 - 5, -stampHeight / 2 - 5, stampWidth + 10, stampHeight + 10);
+          ctx.setLineDash([]);
+        }
+        
         ctx.restore();
       }
     });
-  }, [document, stamps]);
+  }, [document, stamps, selectedStamp]);
 
   // Redraw canvas when document or stamps change
   useEffect(() => {
@@ -173,18 +221,21 @@ const DocumentStamper = ({ stampConfig }: DocumentStamperProps) => {
 
   const handleClearStamps = () => {
     setStamps([]);
+    setSelectedStamp(null);
     toast.success("All stamps cleared!");
   };
 
   const handleDownload = () => {
     if (!canvasRef.current) return;
     
-    const link = document.createElement('a');
+    const link = globalThis.document.createElement('a');
     link.download = 'stamped-document.png';
     link.href = canvasRef.current.toDataURL('image/png', 1.0);
     link.click();
     toast.success("Document downloaded!");
   };
+
+  const selectedStampData = stamps.find(stamp => stamp.id === selectedStamp);
 
   return (
     <div className="space-y-6">
@@ -219,11 +270,16 @@ const DocumentStamper = ({ stampConfig }: DocumentStamperProps) => {
           </div>
 
           {document && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button onClick={handleClearStamps} variant="outline" size="sm">
                 <RotateCcw className="w-4 h-4 mr-2" />
-                Clear Stamps
+                Clear All
               </Button>
+              {selectedStamp && (
+                <Button onClick={deleteSelectedStamp} variant="destructive" size="sm">
+                  Delete Selected
+                </Button>
+              )}
               <Button onClick={handleDownload} size="sm">
                 <Download className="w-4 h-4 mr-2" />
                 Download
@@ -247,8 +303,58 @@ const DocumentStamper = ({ stampConfig }: DocumentStamperProps) => {
             />
           </div>
           <p className="text-sm text-muted-foreground mt-2 text-center">
-            Click anywhere on the document to place a stamp at that location
+            Click anywhere to place a stamp, or click on existing stamps to select and adjust them
           </p>
+        </div>
+      )}
+
+      {selectedStampData && (
+        <div className="bg-card/80 backdrop-blur p-6 rounded-lg border">
+          <h4 className="text-lg font-medium mb-4 flex items-center gap-2">
+            <Move className="w-5 h-5" />
+            Adjust Selected Stamp
+          </h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>X Position: {Math.round(selectedStampData.x)}px</Label>
+              <Slider
+                value={[selectedStampData.x]}
+                onValueChange={([x]) => updateSelectedStamp({ x })}
+                max={document?.naturalWidth || 800}
+                min={0}
+                step={1}
+                className="w-full"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Y Position: {Math.round(selectedStampData.y)}px</Label>
+              <Slider
+                value={[selectedStampData.y]}
+                onValueChange={([y]) => updateSelectedStamp({ y })}
+                max={document?.naturalHeight || 600}
+                min={0}
+                step={1}
+                className="w-full"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <RotateCw className="w-4 h-4" />
+                Rotation: {selectedStampData.rotation}°
+              </Label>
+              <Slider
+                value={[selectedStampData.rotation]}
+                onValueChange={([rotation]) => updateSelectedStamp({ rotation })}
+                max={360}
+                min={0}
+                step={1}
+                className="w-full"
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
