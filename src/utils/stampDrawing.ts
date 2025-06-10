@@ -25,6 +25,9 @@ export const drawStar = (ctx: CanvasRenderingContext2D, x: number, y: number, si
     else ctx.lineTo(x1, y1);
   }
   ctx.closePath();
+  
+  // Add slight imperfections to the star
+  ctx.globalAlpha = 0.8 + Math.random() * 0.2;
   ctx.fill();
   ctx.restore();
 };
@@ -40,7 +43,7 @@ export const drawCurvedText = (
   fontSize: number
 ) => {
   ctx.save();
-  ctx.font = `bold ${fontSize}px Arial`;
+  ctx.font = `bold ${fontSize}px "Special Elite", "Courier Prime", "Courier New", monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   
@@ -54,8 +57,18 @@ export const drawCurvedText = (
     const y = centerY + Math.sin(angle) * radius;
     
     ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle + (clockwise ? Math.PI/2 : -Math.PI/2));
+    
+    // Add slight character-level imperfections
+    const charOffsetX = (Math.random() - 0.5) * 0.5;
+    const charOffsetY = (Math.random() - 0.5) * 0.5;
+    const charRotation = (Math.random() - 0.5) * 0.01;
+    
+    ctx.translate(x + charOffsetX, y + charOffsetY);
+    ctx.rotate(angle + (clockwise ? Math.PI/2 : -Math.PI/2) + charRotation);
+    
+    // Add slight transparency variation for each character
+    ctx.globalAlpha = 0.8 + Math.random() * 0.2;
+    
     ctx.fillText(text[i], 0, 0);
     ctx.restore();
   }
