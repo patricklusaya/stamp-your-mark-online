@@ -1,5 +1,5 @@
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,30 +21,93 @@ interface DocumentStamperProps {
 const DocumentStamper = ({ stampConfig }: DocumentStamperProps) => {
   const [document, setDocument] = useState<HTMLImageElement | null>(null);
   const [stamps, setStamps] = useState<StampPosition[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const convertToImage = useCallback(async (file: File): Promise<HTMLImageElement> => {
+    return new Promise(async (resolve, reject) => {
+      const img = new Image();
+      
+      if (file.type.startsWith('image/')) {
+        // Handle image files directly
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type === 'application/pdf') {
+        // Handle PDF files
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const pdfjsLib = await import('pdfjs-dist');
+          
+          // Set worker source
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+          
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          const page = await pdf.getPage(1); // Get first page
+          
+          const viewport = page.getViewport({ scale: 2 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          
+          if (!context) throw new Error('Could not get canvas context');
+          
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          
+          await page.render({
+            canvasContext: context,
+            viewport: viewport,
+          }).promise;
+          
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = canvas.toDataURL();
+        } catch (error) {
+          reject(new Error('Failed to process PDF file'));
+        }
+      } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        // Handle DOCX files (convert to image representation)
+        reject(new Error('DOCX files need to be converted to PDF or image format first. Please save as PDF and upload again.'));
+      } else {
+        reject(new Error('Unsupported file format'));
+      }
+    });
+  }, []);
+
+  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast.error("Please upload an image file (JPG, PNG, etc.)");
+    const supportedTypes = [
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'application/pdf'
+    ];
+
+    if (!supportedTypes.includes(file.type)) {
+      toast.error("Please upload a JPG, PNG, or PDF file");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        setDocument(img);
-        setStamps([]);
-        toast.success("Document uploaded successfully!");
-      };
-      img.src = e.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-  }, []);
+    setIsLoading(true);
+    try {
+      const img = await convertToImage(file);
+      setDocument(img);
+      setStamps([]);
+      toast.success("Document uploaded successfully!");
+    } catch (error) {
+      console.error('Error converting file:', error);
+      toast.error("Failed to process the file. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [convertToImage]);
 
   const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
     if (!document || !canvasRef.current) return;
@@ -104,9 +167,9 @@ const DocumentStamper = ({ stampConfig }: DocumentStamperProps) => {
   }, [document, stamps]);
 
   // Redraw canvas when document or stamps change
-  useState(() => {
+  useEffect(() => {
     redrawCanvas();
-  });
+  }, [redrawCanvas]);
 
   const handleClearStamps = () => {
     setStamps([]);
@@ -135,21 +198,23 @@ const DocumentStamper = ({ stampConfig }: DocumentStamperProps) => {
               <Input
                 id="document-upload"
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.pdf"
                 onChange={handleFileUpload}
                 ref={fileInputRef}
                 className="flex-1"
+                disabled={isLoading}
               />
               <Button
                 onClick={() => fileInputRef.current?.click()}
                 variant="outline"
                 size="icon"
+                disabled={isLoading}
               >
                 <Upload className="w-4 h-4" />
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Upload an image of your document (JPG, PNG, etc.)
+              Upload JPG, PNG, or PDF files. {isLoading && "Processing..."}
             </p>
           </div>
 
