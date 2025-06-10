@@ -1,5 +1,4 @@
-
-import { drawRoundedRect, drawStar, drawCurvedText } from './stampDrawing';
+import { drawRoundedRect, drawStar, drawCurvedText, drawCurvedOvalText } from './stampDrawing';
 
 export interface StampConfig {
   stampText: string;
@@ -26,6 +25,8 @@ export const generateStampCanvas = (config: StampConfig): HTMLCanvasElement | nu
   } else if (stampType === "signature-oval") {
     baseWidth = 350;
     baseHeight = 150;
+  } else if (stampType === "paid-circle") {
+    baseWidth = baseHeight = 300;
   } else {
     baseWidth = 350;
     baseHeight = 120;
@@ -67,6 +68,9 @@ export const generateStampCanvas = (config: StampConfig): HTMLCanvasElement | nu
       break;
     case "logo-square":
       drawLogoSquare(ctx, centerX, centerY, baseWidth, baseHeight, stampText, fontSize, borderWidth);
+      break;
+    case "paid-circle":
+      drawPaidCircle(ctx, centerX, centerY, baseWidth, baseHeight, stampText, fontSize, borderWidth);
       break;
   }
 
@@ -209,21 +213,115 @@ const drawSignatureOval = (
   fontSize: number,
   borderWidth: number
 ) => {
+  const radiusX = (baseWidth - 20) / 2;
+  const radiusY = (baseHeight - 20) / 2;
+  
   ctx.beginPath();
-  ctx.ellipse(centerX, centerY, (baseWidth - 20) / 2, (baseHeight - 20) / 2, 0, 0, 2 * Math.PI);
+  ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
   addLineImperfections(ctx);
   ctx.stroke();
   
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.ellipse(centerX, centerY, (baseWidth - 35) / 2, (baseHeight - 35) / 2, 0, 0, 2 * Math.PI);
+  ctx.ellipse(centerX, centerY, radiusX - 8, radiusY - 8, 0, 0, 2 * Math.PI);
   addLineImperfections(ctx);
   ctx.stroke();
+  
+  const lines = stampText.split('\n').filter(line => line.trim());
   
   ctx.font = `${fontSize}px "Special Elite", "Courier Prime", "Courier New", monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  addTextImperfections(ctx, stampText.replace(/\n/g, ' '), centerX, centerY);
+  
+  if (lines.length >= 3) {
+    // Top curved text
+    drawCurvedOvalText(ctx, lines[0], centerX, centerY, radiusX - 15, radiusY - 15, -Math.PI/2, true, fontSize - 2);
+    
+    // Center horizontal text
+    addTextImperfections(ctx, lines[1], centerX, centerY);
+    
+    // Bottom curved text
+    drawCurvedOvalText(ctx, lines[2], centerX, centerY, radiusX - 15, radiusY - 15, Math.PI/2, false, fontSize - 2);
+  } else if (lines.length === 2) {
+    // Top curved text
+    drawCurvedOvalText(ctx, lines[0], centerX, centerY, radiusX - 15, radiusY - 15, -Math.PI/2, true, fontSize - 1);
+    
+    // Bottom curved text
+    drawCurvedOvalText(ctx, lines[1], centerX, centerY, radiusX - 15, radiusY - 15, Math.PI/2, false, fontSize - 1);
+  } else {
+    // Single line - center horizontal
+    addTextImperfections(ctx, lines[0] || stampText.replace(/\n/g, ' '), centerX, centerY);
+  }
+
+  addInkTexture(ctx);
+};
+
+const drawPaidCircle = (
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  baseWidth: number,
+  baseHeight: number,
+  stampText: string,
+  fontSize: number,
+  borderWidth: number
+) => {
+  const outerRadius = (Math.min(baseWidth, baseHeight) - 20) / 2;
+  
+  // Draw multiple concentric circles
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, outerRadius, 0, 2 * Math.PI);
+  addLineImperfections(ctx);
+  ctx.stroke();
+  
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, outerRadius - 8, 0, 2 * Math.PI);
+  addLineImperfections(ctx);
+  ctx.stroke();
+  
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, outerRadius - 45, 0, 2 * Math.PI);
+  addLineImperfections(ctx);
+  ctx.stroke();
+
+  const lines = stampText.split('\n').filter(line => line.trim());
+  
+  // Company name on top curve
+  if (lines[0]) {
+    drawCurvedText(ctx, lines[0], centerX, centerY, outerRadius - 25, -Math.PI/2, true, fontSize - 2);
+  }
+  
+  // Department on bottom curve
+  if (lines[1]) {
+    drawCurvedText(ctx, lines[1], centerX, centerY, outerRadius - 25, Math.PI/2, false, fontSize - 2);
+  }
+
+  // Large "PAID" text in center
+  ctx.font = `bold ${fontSize + 8}px "Special Elite", "Courier Prime", "Courier New", monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  addTextImperfections(ctx, "PAID", centerX, centerY - 8);
+
+  // Date field
+  ctx.font = `bold ${fontSize - 4}px "Special Elite", "Courier Prime", "Courier New", monospace`;
+  addTextImperfections(ctx, "DATE:", centerX - 25, centerY + 25);
+  
+  // Date lines
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(centerX + 5, centerY + 25);
+  ctx.lineTo(centerX + 15, centerY + 25);
+  ctx.moveTo(centerX + 20, centerY + 25);
+  ctx.lineTo(centerX + 30, centerY + 25);
+  addLineImperfections(ctx);
+  ctx.stroke();
+
+  // Stars decoration
+  drawStar(ctx, centerX - 35, centerY - 5, 3);
+  drawStar(ctx, centerX + 35, centerY - 5, 3);
+  drawStar(ctx, centerX - 10, centerY - 35, 2);
+  drawStar(ctx, centerX, centerY - 35, 2);
+  drawStar(ctx, centerX + 10, centerY - 35, 2);
 
   addInkTexture(ctx);
 };

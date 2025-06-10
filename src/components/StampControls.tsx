@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +28,8 @@ const stampTypes = {
   "business-rectangle": "Business Rectangle", 
   "address-rectangle": "Address Rectangle",
   "signature-oval": "Signature Oval",
-  "logo-square": "Logo Square"
+  "logo-square": "Logo Square",
+  "paid-circle": "Paid Stamp"
 };
 
 const StampControls = ({

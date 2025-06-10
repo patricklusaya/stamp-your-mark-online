@@ -74,3 +74,47 @@ export const drawCurvedText = (
   }
   ctx.restore();
 };
+
+export const drawCurvedOvalText = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  centerX: number,
+  centerY: number,
+  radiusX: number,
+  radiusY: number,
+  startAngle: number,
+  clockwise: boolean,
+  fontSize: number
+) => {
+  ctx.save();
+  ctx.font = `bold ${fontSize}px "Special Elite", "Courier Prime", "Courier New", monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  const totalAngle = Math.PI * 0.8; // Reduced for better oval text distribution
+  const angleStep = totalAngle / Math.max(text.length - 1, 1);
+  const startOffset = startAngle - totalAngle / 2;
+  
+  for (let i = 0; i < text.length; i++) {
+    const angle = startOffset + (clockwise ? i * angleStep : -i * angleStep);
+    const x = centerX + Math.cos(angle) * radiusX;
+    const y = centerY + Math.sin(angle) * radiusY;
+    
+    ctx.save();
+    
+    // Add slight character-level imperfections
+    const charOffsetX = (Math.random() - 0.5) * 0.5;
+    const charOffsetY = (Math.random() - 0.5) * 0.5;
+    const charRotation = (Math.random() - 0.5) * 0.01;
+    
+    ctx.translate(x + charOffsetX, y + charOffsetY);
+    ctx.rotate(angle + (clockwise ? Math.PI/2 : -Math.PI/2) + charRotation);
+    
+    // Add slight transparency variation for each character
+    ctx.globalAlpha = 0.8 + Math.random() * 0.2;
+    
+    ctx.fillText(text[i], 0, 0);
+    ctx.restore();
+  }
+  ctx.restore();
+};
